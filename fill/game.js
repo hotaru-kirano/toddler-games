@@ -134,6 +134,7 @@
     stateAt = performance.now();
     T.confetti(parts, W, H);
     T.cheer();
+    T.roundDone();
     T.say(T.FIGURES[fig].name, 700);
     if (navigator.vibrate) navigator.vibrate([30, 60, 30]);
   }

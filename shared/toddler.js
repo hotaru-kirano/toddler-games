@@ -197,7 +197,43 @@ window.Toddler = (() => {
         voice('sine', t + k, [[0, 2200], [0.07, 2900]], { type: 'lowpass', f: [[0, 6000]] }, 0.25, 0.005, 0.04, 0.04);
       }
     },
+    glug(t) {
+      for (let k = 0; k < 5; k++) {
+        const f = 260 - k * 25;
+        voice('sine', t + k * 0.22, [[0, f], [0.06, f * 1.8]], { type: 'lowpass', f: [[0, 1500]] }, 0.5, 0.005, 0.03, 0.08);
+      }
+    },
   };
+
+  // A running pour/fill sound. Its pitch climbs with level, like a bottle filling up.
+  let pourNodes = null;
+
+  function pour(on, level = 0) {
+    if (!on && !pourNodes) return;
+    if (!audio()) return;
+    if (!pourNodes) {
+      const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+      const lfo = ac.createOscillator(), depth = ac.createGain();
+      src.buffer = white;
+      src.loop = true;
+      f.type = 'bandpass';
+      f.Q.value = 3;
+      g.gain.value = 0.0001;
+      lfo.frequency.value = 9;
+      depth.gain.value = 140; // gurgle
+      lfo.connect(depth);
+      depth.connect(f.frequency);
+      src.connect(f);
+      f.connect(g);
+      g.connect(master);
+      src.start();
+      lfo.start();
+      pourNodes = { f, g };
+    }
+    const t = ac.currentTime;
+    pourNodes.f.frequency.setTargetAtTime(350 + level * 1100, t, 0.1);
+    pourNodes.g.gain.setTargetAtTime(on ? 0.6 : 0.0001, t, on ? 0.04 : 0.08);
+  }
 
   function noise_(name, arg) {
     if (!audio()) return;
@@ -229,9 +265,19 @@ window.Toddler = (() => {
     wakePending = false;
   }
 
+  // Inside Auto Play the game runs in an iframe; the outer page owns fullscreen, wake lock and the
+  // back-button trap, and decides when to switch games.
+  const embedded = window.parent !== window;
+  const tellParent = msg => window.parent.postMessage({ toddler: msg }, location.origin);
+
+  function roundDone() {
+    if (embedded) tellParent('round');
+  }
+
   // Touch only grants user activation on pointerup, so this runs on both down and up.
   function unlock(e) {
     audio();
+    if (embedded) { tellParent('touch'); return; }
     keepAwake();
     if (!historyArmed && navigator.userActivation && navigator.userActivation.isActive) {
       historyArmed = true;
@@ -249,6 +295,7 @@ window.Toddler = (() => {
   // Swallow the back gesture: every back just re-pushes the same page. Chrome skips entries pushed
   // without a tap, so the next tap pushes a fresh one as well.
   window.addEventListener('popstate', () => {
+    if (embedded) return;
     historyArmed = false;
     history.pushState({ toddler: 1 }, '');
   });
@@ -564,7 +611,7 @@ window.Toddler = (() => {
 
   return {
     TAU, COLORS, NOTES, FIGURES, rand, pick,
-    audio, popSound, chime, cheer, noise: noise_, say,
+    audio, popSound, chime, cheer, noise: noise_, say, pour, roundDone,
     starPath, burst, sparkle, confetti, drawParticles, drawTouches,
     drawFigure, otherFigure,
   };

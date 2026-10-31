@@ -244,6 +244,7 @@
     if (navigator.vibrate) navigator.vibrate(40);
     if (hangers.every(o => o.broken) && state === 'play') {
       state = 'done';
+      T.roundDone();
       stateAt = performance.now();
     }
   }

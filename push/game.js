@@ -58,6 +58,7 @@
 
   function celebrate() {
     clearing = true;
+    T.roundDone();
     T.confetti(parts, W, H);
     T.cheer();
     setTimeout(newRound, REFILL_DELAY);

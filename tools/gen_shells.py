@@ -9,7 +9,7 @@ import pathlib
 import shutil
 import subprocess
 
-VERSION = 7
+VERSION = 8
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # slug: (name, background color). Auto Play has its own hand-written page.
@@ -63,8 +63,9 @@ const VERSION = {version};
 const CACHE = '{name}-v' + VERSION;
 const ASSETS = {assets};
 
+// cache: 'reload' skips the browser's HTTP cache, so the offline copy is never a mix of old and new files.
 self.addEventListener('install', e => {{
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(u => new Request(u, {{ cache: 'reload' }})))));
   self.skipWaiting();
 }});
 
@@ -74,9 +75,22 @@ self.addEventListener('activate', e => {{
   self.clients.claim();
 }});
 
+// Network first (revalidated, never a stale HTTP-cache copy), so updates show up on the next launch.
+// The cache is only the offline fallback, and every fresh response refreshes it.
 self.addEventListener('fetch', e => {{
-  if (e.request.method !== 'GET') return;
-  e.respondWith(caches.match(e.request, {{ ignoreSearch: true }}).then(r => r || fetch(e.request)));
+  const req = e.request;
+  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  e.respondWith(
+    fetch(new Request(req, {{ cache: 'no-cache' }}))
+      .then(res => {{
+        if (res.ok && res.type === 'basic') {{
+          const copy = res.clone();
+          e.waitUntil(caches.open(CACHE).then(c => c.put(req.url, copy)));
+        }}
+        return res;
+      }})
+      .catch(() => caches.match(req, {{ ignoreSearch: true }}).then(r => r || Response.error()))
+  );
 }});
 """
 

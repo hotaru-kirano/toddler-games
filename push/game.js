@@ -58,10 +58,10 @@
 
   function celebrate() {
     clearing = true;
-    T.roundDone();
+    setTimeout(newRound, REFILL_DELAY); // first: the next round must come even if an effect fails
     T.confetti(parts, W, H);
     T.cheer();
-    setTimeout(newRound, REFILL_DELAY);
+    T.roundDone();
   }
 
   // ---------- input ----------
@@ -234,6 +234,7 @@
   }
 
   function frame(now) {
+    requestAnimationFrame(frame); // first, so one failed frame can't stop the loop
     const dt = Math.min(0.05, Math.max(0.001, (now - last) / 1000));
     last = now;
     step(dt, now);
@@ -252,7 +253,6 @@
 
     parts = T.drawParticles(ctx, parts, dt, H);
     T.drawTouches(ctx, dt);
-    requestAnimationFrame(frame);
   }
 
   function resize() {

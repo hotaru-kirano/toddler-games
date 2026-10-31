@@ -144,6 +144,7 @@
   }
 
   function frame(now) {
+    requestAnimationFrame(frame); // first, so one failed frame can't stop the loop
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -169,7 +170,6 @@
 
     parts = T.drawParticles(ctx, parts, dt, H);
     T.drawTouches(ctx, dt);
-    requestAnimationFrame(frame);
   }
 
   window.addEventListener('resize', resize);

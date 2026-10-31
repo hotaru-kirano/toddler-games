@@ -11,6 +11,27 @@ window.Toddler = (() => {
   const rand = (a, b) => a + Math.random() * (b - a);
   const pick = arr => arr[Math.floor(Math.random() * arr.length)];
 
+  // ---------- self-heal ----------
+  // A toddler can't fix a frozen screen and there are no buttons, so if errors keep coming (or the
+  // game fails while starting up) reload the page. At most once a minute, so it can't loop.
+  const loadedAt = Date.now();
+  const errorTimes = [];
+
+  function onError() {
+    const now = Date.now();
+    errorTimes.push(now);
+    while (errorTimes.length && now - errorTimes[0] > 5000) errorTimes.shift();
+    if (errorTimes.length < 10 && now - loadedAt > 1500) return;
+    let lastReload = 0;
+    try { lastReload = Number(sessionStorage.getItem('toddlerReloadAt')) || 0; } catch (_) { /* no storage */ }
+    if (now - lastReload < 60000) return;
+    try { sessionStorage.setItem('toddlerReloadAt', String(now)); } catch (_) { /* no storage */ }
+    setTimeout(() => location.reload(), 300);
+  }
+
+  window.addEventListener('error', onError);
+  window.addEventListener('unhandledrejection', onError);
+
   // ---------- sound ----------
 
   let ac = null, master = null, noise = null, white = null;

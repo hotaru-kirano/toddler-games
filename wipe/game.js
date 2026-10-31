@@ -17,12 +17,13 @@
     ['#45b045', '#70c870'],
   ];
   const BACKDROPS = ['#fff6d6', '#e3f4ff', '#ffe8ef', '#e9ffe6', '#f1eaff'];
-  const DONE_AT = 0.9;       // fraction wiped before the rest clears by itself
+  const DONE_AT = 0.8;       // fraction of the figure uncovered before the rest clears by itself
   const SHOW_FOR = 3.0;      // seconds the figure stays uncovered
   const DROP_FOR = 0.8;      // seconds for the new cover to fall into place
 
   let W = 0, H = 0, dpr = 1, brush = 40;
-  let grid = null, cols = 0, rows = 0, cell = 1, cleared = 0;
+  // wiped: cells the finger has cleared; onFig: cells over the figure, the only ones that count.
+  let wiped = null, onFig = null, cols = 0, rows = 0, cell = 1, total = 1, cleared = 0;
   let state = 'play';        // play | reveal | refill
   let stateAt = 0;
   let round = 0;
@@ -41,12 +42,43 @@
 
   // ---------- cover ----------
 
+  const figSize = () => Math.min(W, H) * 0.36;
+
   function setupGrid() {
     cell = brush * 0.6;
     cols = Math.ceil(W / cell);
     rows = Math.ceil(H / cell);
-    grid = new Uint8Array(cols * rows);
+    wiped = new Uint8Array(cols * rows);
+    markFigure();
+  }
+
+  // Finds the cells that sit over the current figure. Wiping empty background is free play;
+  // only uncovering the figure moves the round along.
+  function markFigure() {
+    const sil = document.createElement('canvas');
+    sil.width = cover.width;
+    sil.height = cover.height;
+    const sctx = sil.getContext('2d');
+    sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    sctx.translate(W / 2, H / 2);
+    sctx.scale(figSize(), figSize());
+    T.drawFigure(sctx, fig, '#000');
+    const img = sctx.getImageData(0, 0, sil.width, sil.height).data;
+    onFig = new Uint8Array(cols * rows);
+    total = 0;
     cleared = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const px = Math.min(sil.width - 1, Math.floor((c + 0.5) * cell * dpr));
+        const py = Math.min(sil.height - 1, Math.floor((r + 0.5) * cell * dpr));
+        if (img[(py * sil.width + px) * 4 + 3] < 128) continue;
+        const i = r * cols + c;
+        onFig[i] = 1;
+        total++;
+        cleared += wiped[i];
+      }
+    }
+    total = Math.max(1, total);
   }
 
   function paintCover() {
@@ -73,9 +105,9 @@
       for (let c = 0; c < cols; c++) {
         const px = Math.min(cover.width - 1, Math.floor((c + 0.5) * cell * dpr));
         const py = Math.min(cover.height - 1, Math.floor((r + 0.5) * cell * dpr));
-        const wiped = img[(py * cover.width + px) * 4 + 3] < 128 ? 1 : 0;
-        grid[r * cols + c] = wiped;
-        cleared += wiped;
+        const i = r * cols + c;
+        wiped[i] = img[(py * cover.width + px) * 4 + 3] < 128 ? 1 : 0;
+        cleared += wiped[i] & onFig[i];
       }
     }
   }
@@ -101,20 +133,21 @@
     const c1 = Math.min(cols - 1, Math.floor((Math.max(x0, x1) + brush) / cell));
     const r0 = Math.max(0, Math.floor((Math.min(y0, y1) - brush) / cell));
     const r1 = Math.min(rows - 1, Math.floor((Math.max(y0, y1) + brush) / cell));
-    let fresh = 0;
+    let fresh = 0, figFresh = 0;
     for (let r = r0; r <= r1; r++) {
       for (let c = c0; c <= c1; c++) {
         const i = r * cols + c;
-        if (grid[i]) continue;
+        if (wiped[i]) continue;
         if (distToSeg((c + 0.5) * cell, (r + 0.5) * cell, x0, y0, x1, y1) <= brush) {
-          grid[i] = 1;
+          wiped[i] = 1;
           fresh++;
+          figFresh += onFig[i];
         }
       }
     }
     if (!fresh) return;
-    cleared += fresh;
-    const progress = cleared / grid.length;
+    cleared += figFresh;
+    const progress = cleared / total;
 
     const now = performance.now();
     if (now - lastChime > 90) {
@@ -213,6 +246,7 @@
       if (t >= DROP_FOR) {
         // Cover is fully down, so the swap underneath is never seen.
         fig = T.otherFigure(fig);
+        markFigure();
         backdrop = BACKDROPS[round % BACKDROPS.length];
         state = 'play';
         for (const p of down.values()) wipe(p.x, p.y, p.x, p.y);
@@ -223,7 +257,7 @@
     ctx.fillStyle = backdrop;
     ctx.fillRect(0, 0, W, H);
 
-    const s = Math.min(W, H) * 0.36;
+    const s = figSize();
     ctx.save();
     ctx.translate(W / 2, H / 2);
     ctx.scale(s, s);

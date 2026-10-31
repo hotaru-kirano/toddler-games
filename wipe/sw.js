@@ -1,5 +1,5 @@
 // Bump VERSION when any file changes so installed copies pick up the update.
-const VERSION = 5;
+const VERSION = 6;
 const CACHE = 'wipe-v' + VERSION;
 const ASSETS = [
   './',

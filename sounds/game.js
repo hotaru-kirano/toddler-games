@@ -18,7 +18,9 @@
     playedAt: -Infinity,
   }));
 
-  let W = 0, H = 0, dpr = 1;
+  const COOLDOWN = 180;    // ms before the same button sounds again (palms land as several touches)
+
+  let W = 0, H = 0, dpr = 1, gap = 0;
   let parts = [];   // shared sparkles/confetti
   let notes = [];   // floating music notes
   let last = performance.now();
@@ -31,7 +33,7 @@
     canvas.height = Math.round(H * dpr);
     const cols = W > H ? 3 : 2;
     const rows = Math.ceil(buttons.length / cols);
-    const gap = Math.min(W, H) * 0.04;
+    gap = Math.min(W, H) * 0.04;
     const w = (W - gap * (cols + 1)) / cols;
     const h = (H - gap * (rows + 1)) / rows;
     buttons.forEach((b, i) => {
@@ -42,13 +44,17 @@
     });
   }
 
+  // Buttons reach halfway into the gaps, so there's no dead space between them.
   function hit(x, y) {
-    return buttons.find(b => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h);
+    const m = gap / 2 + 1;
+    return buttons.find(b => x >= b.x - m && x <= b.x + b.w + m && y >= b.y - m && y <= b.y + b.h + m) || null;
   }
 
   function press(b) {
     const f = T.FIGURES[b.fig];
-    b.playedAt = performance.now();
+    const now = performance.now();
+    if (now - b.playedAt < COOLDOWN) return;
+    b.playedAt = now;
     T.noise(f.noise);
     T.say(f.word, 650);
     if (navigator.vibrate) navigator.vibrate(30);
@@ -67,16 +73,31 @@
 
   // ---------- input ----------
 
-  const held = new Map(); // pointerId -> button
+  const held = new Map(); // pointerId -> button under that finger (or null)
+
+  function touch(id, b) {
+    held.set(id, b);
+    if (!b) return;
+    b.pressed.add(id);
+    press(b);
+  }
 
   canvas.addEventListener('pointerdown', e => {
     e.preventDefault();
     const b = hit(e.clientX, e.clientY);
-    if (!b) { T.sparkle(parts, e.clientX, e.clientY); return; }
-    held.set(e.pointerId, b);
-    b.pressed.add(e.pointerId);
-    press(b);
+    if (!b) T.sparkle(parts, e.clientX, e.clientY);
+    touch(e.pointerId, b);
   }, { passive: false });
+
+  // Sliding a finger onto another button plays it, like running a hand along piano keys.
+  canvas.addEventListener('pointermove', e => {
+    if (!held.has(e.pointerId)) return;
+    const prev = held.get(e.pointerId);
+    const b = hit(e.clientX, e.clientY);
+    if (b === prev) return;
+    if (prev) prev.pressed.delete(e.pointerId);
+    touch(e.pointerId, b);
+  });
 
   function release(e) {
     const b = held.get(e.pointerId);

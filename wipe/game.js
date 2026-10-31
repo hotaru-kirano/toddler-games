@@ -130,7 +130,6 @@
   function reveal() {
     state = 'reveal';
     stateAt = performance.now();
-    down.clear();
     T.confetti(parts, W, H);
     T.cheer();
     T.say(T.FIGURES[fig].name, 700);
@@ -146,24 +145,25 @@
 
   // ---------- input ----------
 
+  // Every finger on the screen, tracked through round changes too, so a toddler who never
+  // lifts their finger keeps wiping as soon as the next cover lands.
   const down = new Map(); // pointerId -> last {x, y}
 
   canvas.addEventListener('pointerdown', e => {
     e.preventDefault();
-    if (state !== 'play') { T.sparkle(parts, e.clientX, e.clientY); return; }
     down.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    wipe(e.clientX, e.clientY, e.clientX, e.clientY);
+    if (state === 'play') wipe(e.clientX, e.clientY, e.clientX, e.clientY);
+    else T.sparkle(parts, e.clientX, e.clientY);
   }, { passive: false });
 
   canvas.addEventListener('pointermove', e => {
     const p = down.get(e.pointerId);
-    if (!p || state !== 'play') return;
+    if (!p) return;
     // Coalesced events keep fast swipes smooth on phones.
     const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
     for (const ev of (evs.length ? evs : [e])) {
-      wipe(p.x, p.y, ev.clientX, ev.clientY);
+      if (state === 'play') wipe(p.x, p.y, ev.clientX, ev.clientY);
       p.x = ev.clientX; p.y = ev.clientY;
-      if (state !== 'play') break;
     }
   });
 
@@ -216,6 +216,7 @@
         fig = T.otherFigure(fig);
         backdrop = BACKDROPS[round % BACKDROPS.length];
         state = 'play';
+        for (const p of down.values()) wipe(p.x, p.y, p.x, p.y);
       }
     }
 

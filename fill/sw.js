@@ -1,5 +1,5 @@
 // Bump VERSION when any file changes so installed copies pick up the update.
-const VERSION = 1;
+const VERSION = 2;
 const CACHE = 'fill-v' + VERSION;
 const ASSETS = [
   './',

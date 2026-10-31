@@ -133,7 +133,6 @@
   function finish() {
     state = 'done';
     stateAt = performance.now();
-    down.clear();
     T.confetti(parts, W, H);
     T.cheer();
     T.say(T.FIGURES[fig].name, 700);
@@ -147,23 +146,24 @@
 
   // ---------- input ----------
 
+  // Every finger on the screen, tracked through round changes too, so a toddler who never
+  // lifts their finger keeps painting as soon as the next figure appears.
   const down = new Map(); // pointerId -> last {x, y}
 
   canvas.addEventListener('pointerdown', e => {
     e.preventDefault();
-    if (state !== 'play') { T.sparkle(parts, e.clientX, e.clientY); return; }
     down.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    stroke(e.clientX, e.clientY, e.clientX, e.clientY);
+    if (state === 'play') stroke(e.clientX, e.clientY, e.clientX, e.clientY);
+    else T.sparkle(parts, e.clientX, e.clientY);
   }, { passive: false });
 
   canvas.addEventListener('pointermove', e => {
     const p = down.get(e.pointerId);
-    if (!p || state !== 'play') return;
+    if (!p) return;
     const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
     for (const ev of (evs.length ? evs : [e])) {
-      stroke(p.x, p.y, ev.clientX, ev.clientY);
+      if (state === 'play') stroke(p.x, p.y, ev.clientX, ev.clientY);
       p.x = ev.clientX; p.y = ev.clientY;
-      if (state !== 'play') break;
     }
   });
 
@@ -209,7 +209,10 @@
     } else if (state === 'in') {
       const k = Math.min(1, t / (SWAP_FOR * 1.4));
       scale = Math.max(0.001, easeOutBack(k));
-      if (k >= 1) setState('play');
+      if (k >= 1) {
+        setState('play');
+        for (const p of down.values()) stroke(p.x, p.y, p.x, p.y);
+      }
     }
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);

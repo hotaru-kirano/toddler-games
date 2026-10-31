@@ -196,8 +196,12 @@ window.Toddler = (() => {
 
   window.addEventListener('pointerdown', unlock, true);
   window.addEventListener('pointerup', unlock, true);
-  // Swallow the back gesture: every back just re-pushes the same page.
-  window.addEventListener('popstate', () => history.pushState({ toddler: 1 }, ''));
+  // Swallow the back gesture: every back just re-pushes the same page. Chrome skips entries pushed
+  // without a tap, so the next tap pushes a fresh one as well.
+  window.addEventListener('popstate', () => {
+    historyArmed = false;
+    history.pushState({ toddler: 1 }, '');
+  });
   document.addEventListener('visibilitychange', keepAwake);
   document.addEventListener('contextmenu', e => e.preventDefault());
   document.addEventListener('gesturestart', e => e.preventDefault());

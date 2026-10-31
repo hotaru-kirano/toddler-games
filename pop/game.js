@@ -72,13 +72,16 @@
 
   // ---------- game actions ----------
 
-  function hit(x, y) {
+  // A chubby finger or a whole palm reports a bigger contact; let that reach further.
+  const reach = e => Math.min(60, Math.max(e.width || 0, e.height || 0) / 2);
+
+  function hit(x, y, extra = 0) {
     const now = performance.now();
     let best = -1, bestD = Infinity;
     items.forEach((it, i) => {
       if (now < it.born) return;
       const d = Math.hypot(x - it.x, y - (it.y + bob(it, now)));
-      if (d < it.r * 1.25 && d < bestD) { best = i; bestD = d; }
+      if (d < it.r * 1.25 + extra && d < bestD) { best = i; bestD = d; }
     });
     return best;
   }
@@ -109,7 +112,7 @@
   canvas.addEventListener('pointerdown', e => {
     e.preventDefault();
     down.add(e.pointerId);
-    const i = hit(e.clientX, e.clientY);
+    const i = hit(e.clientX, e.clientY, reach(e));
     if (i >= 0) {
       pop(i);
     } else {
@@ -121,7 +124,7 @@
   // Dragging a finger across things pops them too.
   canvas.addEventListener('pointermove', e => {
     if (!down.has(e.pointerId)) return;
-    const i = hit(e.clientX, e.clientY);
+    const i = hit(e.clientX, e.clientY, reach(e));
     if (i >= 0) pop(i);
   });
 

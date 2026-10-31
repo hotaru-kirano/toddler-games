@@ -89,9 +89,12 @@
   document.addEventListener('visibilitychange', keepAwake);
   document.addEventListener('contextmenu', e => e.preventDefault());
 
-  // One worker for the whole collection, so every game works offline from here.
+  // One worker for the whole collection, so every game works offline from here. Look for a new
+  // version every half hour too, since Auto Play may run for a long time.
   if ('serviceWorker' in navigator) {
-    addEventListener('load', () => navigator.serviceWorker.register('../sw.js', { scope: '../' }).catch(() => {}));
+    addEventListener('load', () => navigator.serviceWorker.register('../sw.js', { scope: '../' })
+      .then(reg => setInterval(() => reg.update().catch(() => {}), 30 * 60 * 1000))
+      .catch(() => {}));
   }
 
   show(pickNext());

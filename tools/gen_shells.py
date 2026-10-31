@@ -9,7 +9,7 @@ import pathlib
 import shutil
 import subprocess
 
-VERSION = 8
+VERSION = 10
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 # slug: (name, background color). Auto Play has its own hand-written page.
@@ -69,10 +69,18 @@ self.addEventListener('install', e => {{
   self.skipWaiting();
 }});
 
+// On an update (an older cache exists), drop the old copy and reload any open game onto this
+// version, so a fix reaches everyone the moment it arrives, with nothing for them to do.
 self.addEventListener('activate', e => {{
-  e.waitUntil(caches.keys().then(keys =>
-    Promise.all(keys.filter(k => k.startsWith('{name}-') && k !== CACHE).map(k => caches.delete(k)))));
-  self.clients.claim();
+  e.waitUntil((async () => {{
+    const stale = (await caches.keys()).filter(k => k.startsWith('{name}-') && k !== CACHE);
+    await Promise.all(stale.map(k => caches.delete(k)));
+    await self.clients.claim();
+    if (!stale.length) return;
+    for (const page of await self.clients.matchAll({{ type: 'window' }})) {{
+      page.navigate(page.url).catch(() => {{}});
+    }}
+  }})());
 }});
 
 // Network first (revalidated, never a stale HTTP-cache copy), so updates show up on the next launch.

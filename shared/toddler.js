@@ -324,8 +324,11 @@ window.Toddler = (() => {
   document.addEventListener('contextmenu', e => e.preventDefault());
   document.addEventListener('gesturestart', e => e.preventDefault());
 
+  // Games can stay open for hours, so look for a new version every half hour, not just at launch.
   if ('serviceWorker' in navigator) {
-    addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    addEventListener('load', () => navigator.serviceWorker.register('sw.js')
+      .then(reg => setInterval(() => reg.update().catch(() => {}), 30 * 60 * 1000))
+      .catch(() => {}));
   }
 
   // ---------- touch feedback: every finger shows up, wherever it lands ----------

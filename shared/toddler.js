@@ -13,7 +13,7 @@ window.Toddler = (() => {
 
   // ---------- sound ----------
 
-  let ac = null, master = null, noise = null;
+  let ac = null, master = null, noise = null, white = null;
 
   function audio() {
     if (!ac) {
@@ -29,6 +29,9 @@ window.Toddler = (() => {
       noise = ac.createBuffer(1, len, ac.sampleRate);
       const d = noise.getChannelData(0);
       for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 4);
+      white = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
+      const w = white.getChannelData(0);
+      for (let i = 0; i < w.length; i++) w[i] = Math.random() * 2 - 1;
     }
     if (ac.state === 'suspended') ac.resume().catch(() => {});
     return ac;
@@ -84,6 +87,21 @@ window.Toddler = (() => {
     out.connect(master);
     o.start(start);
     o.stop(end + 0.05);
+  }
+
+  // Filtered white noise with a quick attack and a fade over dur seconds.
+  function hiss(start, dur, filter, peak) {
+    const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    src.buffer = white;
+    f.type = filter.type;
+    f.Q.value = filter.Q || 0.7;
+    ramp(f.frequency, start, filter.f);
+    ramp(g.gain, start, [[0, 0.0001], [0.005, peak], [dur, 0.0001]]);
+    src.connect(f);
+    f.connect(g);
+    g.connect(master);
+    src.start(start);
+    src.stop(start + dur + 0.02);
   }
 
   function popSound(freq) {
@@ -147,11 +165,43 @@ window.Toddler = (() => {
     boing(t) {
       voice('sine', t, [[0, 150], [0.5, 420]], { type: 'lowpass', f: [[0, 3000]] }, 0.6, 0.01, 0.25, 0.3, 14);
     },
+    bonk(t, f = 300) {
+      voice('triangle', t, [[0, f * 1.6], [0.08, f]], { type: 'lowpass', f: [[0, 3000]] }, 0.5, 0.005, 0.03, 0.15);
+    },
+    whoosh(t) {
+      hiss(t, 0.4, { type: 'bandpass', Q: 1.5, f: [[0, 400], [0.35, 2400]] }, 0.7);
+    },
+    crack(t) {
+      hiss(t, 0.1, { type: 'highpass', f: [[0, 2000]] }, 0.9);
+      hiss(t + 0.04, 0.06, { type: 'bandpass', Q: 2, f: [[0, 3500]] }, 0.7);
+      hiss(t + 0.09, 0.05, { type: 'bandpass', Q: 2, f: [[0, 2500]] }, 0.5);
+      voice('sine', t, [[0, 160], [0.12, 60]], { type: 'lowpass', f: [[0, 800]] }, 0.6, 0.003, 0.02, 0.12);
+    },
+    shatter(t) {
+      hiss(t, 0.35, { type: 'highpass', f: [[0, 3500]] }, 0.7);
+      for (let k = 0; k < 7; k++) {
+        voice('sine', t + rand(0, 0.25), [[0, rand(2200, 5200)]], { type: 'highpass', f: [[0, 1500]] }, 0.15, 0.002, 0.01, 0.15);
+      }
+      voice('sine', t, [[0, 180], [0.1, 70]], { type: 'lowpass', f: [[0, 800]] }, 0.5, 0.003, 0.02, 0.1);
+    },
+    thud(t) {
+      voice('sine', t, [[0, 140], [0.2, 45]], { type: 'lowpass', f: [[0, 600]] }, 0.9, 0.003, 0.05, 0.2);
+      hiss(t, 0.15, { type: 'lowpass', f: [[0, 700]] }, 0.6);
+    },
+    splat(t) {
+      hiss(t, 0.3, { type: 'lowpass', Q: 1, f: [[0, 1400], [0.3, 300]] }, 0.9);
+      voice('sine', t, [[0, 220], [0.15, 70]], { type: 'lowpass', f: [[0, 900]] }, 0.6, 0.003, 0.04, 0.15);
+    },
+    peep(t) {
+      for (const k of [0, 0.14]) {
+        voice('sine', t + k, [[0, 2200], [0.07, 2900]], { type: 'lowpass', f: [[0, 6000]] }, 0.25, 0.005, 0.04, 0.04);
+      }
+    },
   };
 
-  function noise_(name) {
+  function noise_(name, arg) {
     if (!audio()) return;
-    NOISES[name](ac.currentTime + 0.01);
+    NOISES[name](ac.currentTime + 0.01, arg);
   }
 
   function say(text, delay = 0) {

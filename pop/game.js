@@ -42,8 +42,10 @@
     dpr = Math.min(window.devicePixelRatio || 1, 3);
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
-    if (oldW && oldH) {
+    if (oldW > 50 && oldH > 50) {
       for (const it of items) { it.x *= W / oldW; it.y *= H / oldH; }
+    } else {
+      newRound(); // first real size (a window can start out 0x0)
     }
   }
 
@@ -226,6 +228,5 @@
 
   window.addEventListener('resize', resize);
   resize();
-  newRound();
   requestAnimationFrame(frame);
 })();

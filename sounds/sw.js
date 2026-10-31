@@ -1,5 +1,5 @@
 // Bump VERSION when any file changes so installed copies pick up the update.
-const VERSION = 3;
+const VERSION = 4;
 const CACHE = 'sounds-v' + VERSION;
 const ASSETS = [
   './',

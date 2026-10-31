@@ -1,5 +1,5 @@
 // Bump VERSION when any file changes so installed copies pick up the update.
-const VERSION = 2;
+const VERSION = 3;
 const CACHE = 'pop-v' + VERSION;
 const ASSETS = [
   './',

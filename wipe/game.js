@@ -121,7 +121,6 @@
       lastChime = now;
       T.chime(NOTES[Math.min(NOTES.length - 1, Math.floor(progress * NOTES.length))]);
     }
-    if (Math.random() < 0.5) T.sparkle(parts, x1, y1, 3, '#ffffff');
     if (progress >= DONE_AT) reveal();
   }
 
@@ -242,6 +241,7 @@
     }
 
     parts = T.drawParticles(ctx, parts, dt, H);
+    T.drawTouches(ctx, dt);
     requestAnimationFrame(frame);
   }
 

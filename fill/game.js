@@ -115,7 +115,6 @@
         }
       }
     }
-    if (Math.random() < 0.4) T.sparkle(parts, x1, y1, 2, color);
     if (!fresh) return;
     filled += fresh;
     const progress = filled / total;
@@ -238,6 +237,7 @@
     ctx.restore();
 
     parts = T.drawParticles(ctx, parts, dt, H);
+    T.drawTouches(ctx, dt);
     requestAnimationFrame(frame);
   }
 

@@ -210,6 +210,80 @@ window.Toddler = (() => {
     addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
   }
 
+  // ---------- touch feedback: every finger shows up, wherever it lands ----------
+
+  const TRAIL_LIFE = 0.5;
+  const RIPPLE_LIFE = 0.45;
+  const fingers = new Map(); // pointerId -> {x, y, hue}
+  let ripples = [];
+  let trail = [];
+  let nextHue = rand(0, 360);
+
+  window.addEventListener('pointerdown', e => {
+    const f = { x: e.clientX, y: e.clientY, hue: nextHue };
+    nextHue = (nextHue + 47) % 360;
+    fingers.set(e.pointerId, f);
+    ripples.push({ x: f.x, y: f.y, hue: f.hue, t: 0 });
+  }, true);
+
+  window.addEventListener('pointermove', e => {
+    const f = fingers.get(e.pointerId);
+    if (!f) return;
+    const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+    for (const ev of (evs.length ? evs : [e])) {
+      const dx = ev.clientX - f.x, dy = ev.clientY - f.y;
+      const d = Math.hypot(dx, dy);
+      const steps = Math.ceil(d / 6);
+      for (let i = 1; i <= steps; i++) {
+        trail.push({ x: f.x + dx * i / steps, y: f.y + dy * i / steps, hue: (f.hue + d * 0.5 * i / steps) % 360, life: 0 });
+      }
+      f.hue = (f.hue + d * 0.5) % 360;
+      f.x = ev.clientX;
+      f.y = ev.clientY;
+    }
+    if (trail.length > 800) trail.splice(0, trail.length - 800);
+  }, true);
+
+  const liftFinger = e => fingers.delete(e.pointerId);
+  window.addEventListener('pointerup', liftFinger, true);
+  window.addEventListener('pointercancel', liftFinger, true);
+
+  // Draws the beam behind moving fingers, a ripple where each touch landed and a ring under held fingers.
+  function drawTouches(c, dt) {
+    const size = Math.max(10, Math.min(innerWidth, innerHeight) * 0.03);
+    c.lineCap = 'round';
+
+    trail = trail.filter(p => (p.life += dt) < TRAIL_LIFE);
+    for (const p of trail) {
+      const k = 1 - p.life / TRAIL_LIFE;
+      c.globalAlpha = 0.85 * k;
+      c.fillStyle = `hsl(${p.hue}, 95%, 62%)`;
+      c.beginPath(); c.arc(p.x, p.y, size * (0.35 + 0.65 * k), 0, TAU); c.fill();
+    }
+
+    ripples = ripples.filter(r => (r.t += dt) < RIPPLE_LIFE);
+    for (const r of ripples) {
+      const k = r.t / RIPPLE_LIFE;
+      c.globalAlpha = 1 - k;
+      c.strokeStyle = `hsl(${r.hue}, 95%, 62%)`;
+      c.lineWidth = size * 0.5 * (1 - k) + 1;
+      c.beginPath(); c.arc(r.x, r.y, size * (1.5 + 4 * k), 0, TAU); c.stroke();
+    }
+
+    const pulse = 1 + 0.1 * Math.sin(performance.now() / 110);
+    for (const f of fingers.values()) {
+      const rad = size * 3 * pulse;
+      c.globalAlpha = 0.9;
+      c.strokeStyle = `hsl(${f.hue}, 95%, 62%)`;
+      c.lineWidth = size * 0.45;
+      c.beginPath(); c.arc(f.x, f.y, rad, 0, TAU); c.stroke();
+      c.strokeStyle = 'rgba(255,255,255,0.9)';
+      c.lineWidth = size * 0.14;
+      c.beginPath(); c.arc(f.x, f.y, rad, 0, TAU); c.stroke();
+    }
+    c.globalAlpha = 1;
+  }
+
   // ---------- particles ----------
 
   function starPath(c, cx, cy, outer, inner) {
@@ -441,7 +515,7 @@ window.Toddler = (() => {
   return {
     TAU, COLORS, NOTES, FIGURES, rand, pick,
     audio, popSound, chime, cheer, noise: noise_, say,
-    starPath, burst, sparkle, confetti, drawParticles,
+    starPath, burst, sparkle, confetti, drawParticles, drawTouches,
     drawFigure, otherFigure,
   };
 })();

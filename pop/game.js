@@ -220,6 +220,7 @@
     ctx.globalAlpha = 1;
 
     parts = T.drawParticles(ctx, parts, dt, H);
+    T.drawTouches(ctx, dt);
     requestAnimationFrame(frame);
   }
 

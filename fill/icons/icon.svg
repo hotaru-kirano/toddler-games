@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 512 512">
+  <defs>
+    <path id="star" d="M256 80 L306 201 L437 211 L337 296 L368 424 L256 355 L144 424 L175 296 L75 211 L206 201 Z"/>
+    <mask id="inside">
+      <use xlink:href="#star" fill="#fff" stroke="#fff" stroke-width="24" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <rect width="512" height="512" fill="#e3f4ff"/>
+  <use xlink:href="#star" fill="#ece8f4" stroke="#6b5a7b" stroke-width="38" stroke-linejoin="round"/>
+  <use xlink:href="#star" fill="#ece8f4" stroke="#ece8f4" stroke-width="24" stroke-linejoin="round"/>
+  <g mask="url(#inside)" fill="none" stroke-linecap="round" stroke-width="64">
+    <path d="M60 230 C 140 200, 200 260, 260 230" stroke="#ff4d6d"/>
+    <path d="M70 290 C 150 260, 230 320, 300 290" stroke="#ff9f1c"/>
+    <path d="M90 350 C 170 320, 250 380, 330 350" stroke="#ffd60a"/>
+    <path d="M110 410 C 190 380, 280 440, 380 410" stroke="#52d158"/>
+  </g>
+</svg>
